@@ -1,0 +1,1 @@
+The collected data had some form of data spikes. This script removes them. This will be implemented into HeadMovementDataAnalysis when it is complete.
