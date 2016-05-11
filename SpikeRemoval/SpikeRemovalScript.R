@@ -8,34 +8,34 @@ DataToUse <- read.csv("C:/Users/Jack/OneDrive/MSc/My Studies/Head Movement Study
 
 NameVector <- NULL#This stores the names of each created dataset so we can put them in a data frame.
 
-for(j in 1:ncol(DataToUse))#DataSetsPerParticipant# Just using 84 here works and goes through every data column and removes the spikes.ncol(DataToUse)
+for(j in 1:ncol(DataToUse))#4
 {
   CurrentData <- na.omit(DataToUse[j])#This specifies the column that will be selected#DataToUse
   LoopAmount <- nrow(CurrentData)
   LoopAmount <- LoopAmount - 1;
-  
+
   #plot.ts(CurrentData[1])#Prints "Before" plots.
-  
+
   for(k in 1:LoopAmount)
   {
     #Finds the data up spikes.
     if((CurrentData[k + 1, c(1)] - CurrentData[k, c(1)]) > SpikeLimit)
     {
       Gap <- CurrentData[k + 1, c(1)] - CurrentData[k, c(1)]
-      cat("Positive outlier found between cells", k, "and", k+1, "jumps from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k + 1, c(1)] - CurrentData[k, c(1)], "\n") 
-      
+      cat("Positive outlier found between cells", k, "and", k+1, "jumps from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k + 1, c(1)] - CurrentData[k, c(1)], "\n")
+
       for(l in k+1:LoopAmount)
       {
         CurrentData [l, c(1)] <- CurrentData[l, c(1)] - Gap
       }
     }
-    
+
     #Finds the data down spikes.
     if((CurrentData[k, c(1)] - CurrentData[k + 1, c(1)]) > SpikeLimit)
     {
       Gap <- CurrentData[k, c(1)] - CurrentData[k + 1, c(1)]
       cat("Negative outlier found between cells", k, "and", k+1, "drops from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k, c(1)] - CurrentData[k + 1, c(1)], "\n")
-      
+
       for(l in k+1:LoopAmount)
       {
         CurrentData [l, c(1)] <- CurrentData[l, c(1)] + Gap
@@ -46,7 +46,18 @@ for(j in 1:ncol(DataToUse))#DataSetsPerParticipant# Just using 84 here works and
   assign(DataName, na.omit(CurrentData))#Cuts the "NA" out of the despiked dataset.
   NameVector <- c(NameVector, DataName)
 
-  plot.ts(CurrentData[1])#Prints "After" plots.
+  #TestTS <- ts(na.omit(CurrentData[1]), frequency = 60, start = 0)# 60 for seconds, 60/1000 for milliseconds, (60/1000) / 20 for 20 (0.02) milliseconds, start = 0 fixes the start position to 0 not 0.02
+  TestTS <- ts(na.omit(unique(CurrentData[1])), start = 0)#Plots on the unique recordings in the data set. Starts from 0 not 0.02.
+  #plot.ts(TestTS)#Timeseries plot
+  #plot.ts(diff(TestTS))#Velocity Plot.
+  #plot.ts(diff(diff(TestTS)))#Acceleration plot.
+  
+  #Linear interpolation of the result.
+  Interpolation <-approx(x = seq(0,60, length.out = length(TestTS)), y = TestTS, method="linear")# n = ?? is the amount of data interpolations to be used. This interpolation stretches the data out over 60 seconds.
+  plot(Interpolation)
+  lines(Interpolation)
+  
+  #TODO convert the Interpolation to a time series and plot the diff.
   
   #Clears variables just to be sure.
   Gap <-NULL
@@ -66,7 +77,7 @@ for(i in 1:ParticipantNumber)
 
 
 #Variable Cleanup
-for(i in 1:ncol(DataToUse))
+for(i in 1:ncol(DataToUse))#4
 {
   rm(list = NameVector[i])
 }
