@@ -8,8 +8,14 @@ DataToUse <- read.csv("C:/Users/Jack/OneDrive/MSc/My Studies/Head Movement Study
 
 NameVector <- NULL#This stores the names of each created dataset so we can put them in a data frame.
 
+
+ParticipantCount = 1
 for(j in 1:ncol(DataToUse))#4
 {
+  if(j %% 5 == 0)
+  {
+    ParticipantCount <- ParticipantCount + 1
+  }
   CurrentData <- na.omit(DataToUse[j])#This specifies the column that will be selected#DataToUse
   LoopAmount <- nrow(CurrentData)
   LoopAmount <- LoopAmount - 1;
@@ -52,12 +58,24 @@ for(j in 1:ncol(DataToUse))#4
   #plot.ts(diff(TestTS))#Velocity Plot.
   #plot.ts(diff(diff(TestTS)))#Acceleration plot.
   
-  #Linear interpolation of the result.
+  #Linear interpolation of unique data points.
   Interpolation <-approx(x = seq(0,60, length.out = length(TestTS)), y = TestTS, method="linear")# n = ?? is the amount of data interpolations to be used. This interpolation stretches the data out over 60 seconds.
-  plot(Interpolation)
+  plot(Interpolation, main = paste("Linear Interpolation of unique data points","(",colnames(CurrentData[1]),")"), sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
   lines(Interpolation)
   
-  #TODO convert the Interpolation to a time series and plot the diff.
+  #Linear Interpolation of velocity.
+  TestTS <- diff(TestTS)
+  Interpolation <-approx(x = seq(0,60, length.out = length(TestTS)), y = TestTS, method="linear")
+  plot(Interpolation, main = paste("Linear Interpolation of velocity","(",colnames(CurrentData[1]),")"),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+  lines(Interpolation)
+  
+  #Linear Interpolation of Acceleration
+  TestTS <- diff(TestTS)#as we set TestTS to diff(TestTS) in the last call, we only need to call diff on this one which then makes diff(diff(TestTS))
+  Interpolation <-approx(x = seq(0,60, length.out = length(TestTS)), y = TestTS, method="linear")
+  plot(Interpolation, main = paste("Linear Interpolation of acceleration","(",colnames(CurrentData[1]),")"),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+  lines(Interpolation)
+  
+  #Interplation$y to get the y values of the interplation Interpolation$x to get the x values.
   
   #Clears variables just to be sure.
   Gap <-NULL
