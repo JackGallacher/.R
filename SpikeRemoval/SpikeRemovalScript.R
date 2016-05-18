@@ -1,19 +1,19 @@
 ParticipantNumber = 21#Number of particpants in the study.#21
 DataSetsPerPartcipant = 4#Number of datasets in the .csv file for each participant.
 SpikeLimit = 3#The max jump this function will allow before it removes/reduces it.
+#SampleRate = 60#The default sample rate of the interpolations. 60 = 1 per second.
 
 #TODO - Automate the loading in of new data files and save the results to a csv file in corresponding folders.
 #DataToUse <- read.csv("C:/Users/Jack/OneDrive/MSc/My Studies/Head Movement Study/Results Data/Time Normalised .csv files/NVR Task 1 Time Normalised.csv", header = TRUE)
 
-NameVector <- NULL#This stores the names of each created dataset so we can put them in a data frame.
-InterpolatedNameVector <- NULL#This stores the name of each created interpolated dataset.
-InterpolatedVelocityNameVector <- NULL#
-InterpolatedAccelerationNameVector <- NULL
-
-SampleRate = 60#The default sample rate of the interpolations. 60 = 1 per second.
-
-for(i in 1:9)
+for(i in 1:9)#i in 1:9
 {
+  DataToUse <- NULL
+  NameVector <- NULL#This stores the names of each created dataset so we can put them in a data frame.
+  InterpolatedNameVector <- NULL#This stores the name of each created interpolated dataset.
+  InterpolatedVelocityNameVector <- NULL
+  InterpolatedAccelerationNameVector <- NULL
+  
   if(i == 1)
   {
     TaskName = "NVRTask1"
@@ -30,7 +30,7 @@ for(i in 1:9)
     UniqueTimeSeriesFolder <- "C:/Users/Jack/Desktop/NVR Task 1/Time Series (Repeated Data Removed)"
     VelocityPlotFolder <- "C:/Users/Jack/Desktop/NVR Task 1/Velocity Plots"
     AccelerationPlotFolder <- "C:/Users/Jack/Desktop/NVR Task 1/Acceleration Plots"
-    print("Created NVRW Task 1")
+    print("Created NVR Task 1")
   }
   if(i == 2)
   {
@@ -46,9 +46,9 @@ for(i in 1:9)
     BaseFolder <- "C:/Users/Jack/Desktop/NVRW Task 2"
     TimeSeriesFolder <- "C:/Users/Jack/Desktop/NVR Task 2/Time Series"
     UniqueTimeSeriesFolder <- "C:/Users/Jack/Desktop/NVR Task 2/Time Series (Repeated Data Removed)"
-    VelocityPlotFolderr <- "C:/Users/Jack/Desktop/NVR Task 2/Velocity Plots"
+    VelocityPlotFolder <- "C:/Users/Jack/Desktop/NVR Task 2/Velocity Plots"
     AccelerationPlotFolder <- "C:/Users/Jack/Desktop/NVR Task 2/Acceleration Plots"
-    print("Created NVRW Task 2")
+    print("Created NVR Task 2")
   }
   if(i == 3)
   {
@@ -226,10 +226,51 @@ for(i in 1:9)
     NameVector <- c(NameVector, DataName)
     
     #FilteredData <- ts(na.omit(CurrentData[1]), frequency = 60, start = 0)# 60 for seconds, 60/1000 for milliseconds, (60/1000) / 20 for 20 (0.02) milliseconds, start = 0 fixes the start position to 0 not 0.02
-    FilteredData <- ts(na.omit(unique(CurrentData[1])), start = 0)#Created from the unique recordings in the data set. Starts from 0 not 0.02.
+    #FilteredData <- ts(na.omit(unique(CurrentData[1])), start = 0)#Created from the unique recordings in the data set. Starts from 0 not 0.02.
     #plot.ts(FilteredData)#Timeseries plot
     #plot.ts(diff(FilteredData))#Velocity Plot.
     #plot.ts(diff(diff(FilteredData)))#Acceleration plot.
+    
+    FilteredData <- na.omit(CurrentData[1])#Removes all NA values from CurrentData.
+    
+    #Interpolation of repeated values.
+    PreviousValue <- as.numeric(FilteredData[1, c(1)])+10000#Make look better.
+    PreviousIndex <- 0
+    for(i in 1:nrow(FilteredData))#Loops through each row of the FilteredData.
+    {
+      PresentValue = as.numeric(FilteredData[i, c(1)])
+      if(PresentValue != PreviousValue )
+      {
+        GapSize <- i - PreviousIndex
+        if(GapSize > 1) 
+        {
+          #need to interpolate between previous value and present value in the gaps
+          Start <- PreviousIndex + 1
+          End <- i - 1
+          if (Start <= End)
+          {
+            #should interpolate
+            Diff <- PresentValue - PreviousValue
+            DifferencePerRow <- Diff / GapSize
+            Value <- PreviousValue + DifferencePerRow
+            for(j in Start:End)
+            {
+              FilteredData[j, c(1)] = Value
+              Value = Value + DifferencePerRow
+            }
+          }
+        }
+        PreviousValue = PresentValue
+        PreviousIndex = i
+      }
+      else
+      {
+        FilteredData[i, c(1)] = PreviousValue #Sets duplicates at the end of the column (No value after with a different value) to the previous column value.
+      }
+    }
+    
+    Velocity <- diff(na.omit(FilteredData[,c(1)]))
+    Acceleration <- diff(diff(na.omit(FilteredData[,c(1)])))
     
     if(FileNameCount == 1)
     {
@@ -250,7 +291,7 @@ for(i in 1:9)
     }
     
     #Linear interpolation of unique data points.
-    UniqueInterpolation <-approx(x = seq(0,60, length.out = length(FilteredData)), y = FilteredData, method="linear", n = SampleRate)# n = ?? is the amount of data interpolations to be used. n is the sample rate.
+    #UniqueInterpolation <-approx(x = seq(0,60, length.out = length(FilteredData)), y = FilteredData, method="linear", n = SampleRate)# n = ?? is the amount of data interpolations to be used. n is the sample rate.
     #UniqueInterpolation <-ts(UniqueInterpolation, start = 0)#Coverts to time series just incase.
     #plot.ts(UniqueInterpolation$y)#plots ts data (Y axis) just incase.
     #plot(UniqueInterpolation, main = paste("Linear Interpolation of unique data points ","(",colnames(CurrentData[1]),")", sep = ""), sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
@@ -258,48 +299,54 @@ for(i in 1:9)
     
     MyPath <- file.path(UniqueTimeSeriesFolder, paste("Participant", ParticipantCount, "(", RecordedData, ")",".png", sep = ""))
     png(file = MyPath)
-    plot(UniqueInterpolation, main = paste("Linear Interpolation of unique data points ","(",RecordedData,")", sep = ""), sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
-    lines(UniqueInterpolation)
+    #plot(UniqueInterpolation, main = paste("Linear Interpolation of unique data points ","(",RecordedData,")", sep = ""), sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+    plot.ts(FilteredData, main = paste("Linear Interpolation of unique data points ","(",RecordedData,")", sep = ""), sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+    #lines(UniqueInterpolation)
     dev.off()
 
     #Linear Interpolation of velocity.
-    FilteredData <- diff(FilteredData)
-    VelocityInterpolation <-approx(x = seq(0,60, length.out = length(FilteredData)), y = FilteredData, method="linear", n = SampleRate)
+    #FilteredData <- diff(FilteredData)
+    #VelocityInterpolation <-approx(x = seq(0,60, length.out = length(FilteredData)), y = FilteredData, method="linear", n = SampleRate)
     #plot(VelocityInterpolation, main = paste("Linear Interpolation of velocity ","(",colnames(CurrentData[1]),")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
     #lines(VelocityInterpolation)
     
     MyPath <- file.path(VelocityPlotFolder, paste("Participant", ParticipantCount, "(", RecordedData, ")",".png", sep = ""))
     png(file = MyPath)
-    plot(VelocityInterpolation, main = paste("Linear Interpolation of velocity ","(",RecordedData,")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
-    lines(VelocityInterpolation)
+    #plot(VelocityInterpolation, main = paste("Linear Interpolation of velocity ","(",RecordedData,")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+    plot.ts(Velocity, main = paste("Linear Interpolation of velocity ","(",RecordedData,")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+    #lines(VelocityInterpolation)
     dev.off()
     
     #Linear Interpolation of Acceleration
-    FilteredData <- diff(FilteredData)#as we set TestTS to diff(TestTS) in the last call, we only need to call diff on this one which then makes diff(diff(TestTS))
-    AccelerationInterpolation <-approx(x = seq(0,60, length.out = length(FilteredData)), y = FilteredData, method="linear", n = SampleRate)
+    #FilteredData <- diff(FilteredData)#as we set TestTS to diff(TestTS) in the last call, we only need to call diff on this one which then makes diff(diff(TestTS))
+    #AccelerationInterpolation <-approx(x = seq(0,60, length.out = length(FilteredData)), y = FilteredData, method="linear", n = SampleRate)
     #plot(AccelerationInterpolation, main = paste("Linear Interpolation of acceleration ","(",colnames(CurrentData[1]),")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
     #lines(AccelerationInterpolation)
     
     MyPath <- file.path(AccelerationPlotFolder, paste("Participant", ParticipantCount, "(", RecordedData, ")",".png", sep = ""))
     png(file = MyPath)
-    plot(AccelerationInterpolation, main = paste("Linear Interpolation of acceleration ","(",RecordedData,")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
-    lines(AccelerationInterpolation)
+    #plot(AccelerationInterpolation, main = paste("Linear Interpolation of acceleration ","(",RecordedData,")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+    plot.ts(Acceleration, main = paste("Linear Interpolation of acceleration ","(",RecordedData,")", sep = ""),  sub = paste("Participant ", ParticipantCount), xlab = "Time (Interpolated to 60 seconds)", ylab = "Degrees")
+    #lines(AccelerationInterpolation)
     dev.off()
     
     #Creates the data frame for each participants interpolated data after the script has been completed.
-    CurrentInterpolated <- data.frame(matrix(unlist(UniqueInterpolation$y), nrow = length(UniqueInterpolation$y), byrow = T), stringsAsFactors = FALSE)
+    #CurrentInterpolated <- data.frame(matrix(unlist(UniqueInterpolation$y), nrow = length(UniqueInterpolation$y), byrow = T), stringsAsFactors = FALSE)
+    CurrentInterpolated <- FilteredData
     InterpolatedDataName <-paste("InterpolatedData", j, sep = "")
     assign(InterpolatedDataName, na.omit(CurrentInterpolated))
     InterpolatedNameVector <- c(InterpolatedNameVector, InterpolatedDataName)
     
     #Creates a data frame for the velocity of each participant so we can use the data later.
-    CurrentInterpolatedVelocity <- data.frame(matrix(unlist(VelocityInterpolation$y), nrow = length(VelocityInterpolation$y), byrow = T), stringsAsFactors = FALSE)
+    #CurrentInterpolatedVelocity <- data.frame(matrix(unlist(VelocityInterpolation$y), nrow = length(VelocityInterpolation$y), byrow = T), stringsAsFactors = FALSE)
+    CurrentInterpolatedVelocity <- Velocity
     InterpolatedVelocityDataName <-paste("InterpolatedDataVelocity", j, sep = "")
     assign(InterpolatedVelocityDataName, na.omit(CurrentInterpolatedVelocity))
     InterpolatedVelocityNameVector <- c(InterpolatedVelocityNameVector, InterpolatedVelocityDataName)
     
     #creates a data frame for the acceleration pf each participant so we can use the data later.
-    CurrentInterpolatedAcceleration <- data.frame(matrix(unlist(AccelerationInterpolation$y), nrow = length(AccelerationInterpolation$y), byrow = T), stringsAsFactors = FALSE)
+    #CurrentInterpolatedAcceleration <- data.frame(matrix(unlist(AccelerationInterpolation$y), nrow = length(AccelerationInterpolation$y), byrow = T), stringsAsFactors = FALSE)
+    CurrentInterpolatedAcceleration <- Acceleration
     InterpolatedAccelerationDataName <-paste("InterpolatedDataAcceleration", j, sep = "")
     assign(InterpolatedAccelerationDataName, na.omit(CurrentInterpolatedAcceleration))
     InterpolatedAccelerationNameVector <- c(InterpolatedAccelerationNameVector, InterpolatedAccelerationDataName)
@@ -339,6 +386,17 @@ for(i in 1:9)
     colnames(TempData) <- c("Heading", "Roll", "Pitch", "Task.Time")
     assign(InterpolatedAccelerationDataName, TempData)
   }
+  #for(i in 1:ncol(DataToUse))#4
+  #{
+    #rm(list = NameVector[i])
+    #rm(list = InterpolatedNameVector[i])
+    #rm(list = InterpolatedVelocityNameVector[i])
+    #rm(list = InterpolatedAccelerationNameVector[i])
+  #}
+  rm(DataToUse, ColumnNumber, CurrentData, Gap, i, j, k, l, LoopAmount, DataName, 
+     InterpolatedDataName, NameVector, InterpolatedNameVector, CurrentInterpolated, 
+     CurrentInterpolatedVelocity, CurrentInterpolatedAcceleration,FilteredData, ParticipantCount, TempData, InterpolatedAccelerationDataName, InterpolatedVelocityDataName, 
+     InterpolatedAccelerationNameVector, InterpolatedVelocityNameVector)
 }
 
 
@@ -356,18 +414,18 @@ for(i in 1:9)
 #write.csv(TempData, MyPath, row.names = FALSE)
 
 #Variable Cleanup
-for(i in 1:ncol(DataToUse))#4
-{
-  rm(list = NameVector[i])
-  rm(list = InterpolatedNameVector[i])
-  rm(list = InterpolatedVelocityNameVector[i])
-  rm(list = InterpolatedAccelerationNameVector[i])
-}
-rm(DataToUse, ColumnNumber, CurrentData, DataSetsPerPartcipant, Gap, i, j, k, l, LoopAmount, DataName, 
-   InterpolatedDataName, ParticipantNumber, SpikeLimit, NameVector, InterpolatedNameVector, CurrentInterpolated, 
-   CurrentInterpolatedVelocity, CurrentInterpolatedAcceleration, UniqueInterpolation, AccelerationInterpolation, 
-   VelocityInterpolation ,FilteredData, ParticipantCount, TempData, InterpolatedAccelerationDataName, InterpolatedVelocityDataName, 
-   InterpolatedAccelerationNameVector, InterpolatedVelocityNameVector)#, MyPath
+# for(i in 1:ncol(DataToUse))#4
+# {
+#   rm(list = NameVector[i])
+#   rm(list = InterpolatedNameVector[i])
+#   rm(list = InterpolatedVelocityNameVector[i])
+#   rm(list = InterpolatedAccelerationNameVector[i])
+# }
+# rm(DataToUse, ColumnNumber, CurrentData, DataSetsPerPartcipant, Gap, i, j, k, l, LoopAmount, DataName, 
+#    InterpolatedDataName, ParticipantNumber, SpikeLimit, NameVector, InterpolatedNameVector, CurrentInterpolated, 
+#    CurrentInterpolatedVelocity, CurrentInterpolatedAcceleration, UniqueInterpolation, AccelerationInterpolation, 
+#    VelocityInterpolation ,FilteredData, ParticipantCount, TempData, InterpolatedAccelerationDataName, InterpolatedVelocityDataName, 
+#    InterpolatedAccelerationNameVector, InterpolatedVelocityNameVector)#, MyPath
 
 print("Completed")
 
