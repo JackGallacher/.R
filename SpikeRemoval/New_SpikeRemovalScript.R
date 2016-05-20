@@ -2,7 +2,7 @@ ParticipantNumber = 21#Number of particpants in the study.#21
 DataSetsPerPartcipant = 4#Number of datasets in the .csv file for each participant.
 SpikeLimit = 3#The max jump this function will allow before it removes/reduces it.
 
-for(i in 1:9)#i in 1:9
+for(i in 1:9)
 {
   DataToUse <- NULL
   NameVector <- NULL#This stores the names of each created dataset so we can put them in a data frame.
@@ -189,13 +189,14 @@ for(i in 1:9)#i in 1:9
     LoopAmount <- nrow(CurrentData)
     LoopAmount <- LoopAmount - 1;
     
+    #BUG WAS CAUSE BY TWO LOOPS BEING CALLED J, THIS MEANT THAT THE J VALUE WAS BEING ICREASED BY WAY TOO MUCH FOR SOME REASON.
     for(k in 1:LoopAmount)
     {
       #Finds the data up spikes.
       if((CurrentData[k + 1, c(1)] - CurrentData[k, c(1)]) > SpikeLimit)
       {
         Gap <- CurrentData[k + 1, c(1)] - CurrentData[k, c(1)]
-        #cat("Positive outlier found between cells", k, "and", k+1, "jumps from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k + 1, c(1)] - CurrentData[k, c(1)], "\n")
+        cat("Positive outlier found between cells", k, "and", k+1, "jumps from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k + 1, c(1)] - CurrentData[k, c(1)], "\n")
         
         for(l in k+1:LoopAmount)
         {
@@ -207,7 +208,7 @@ for(i in 1:9)#i in 1:9
       if((CurrentData[k, c(1)] - CurrentData[k + 1, c(1)]) > SpikeLimit)
       {
         Gap <- CurrentData[k, c(1)] - CurrentData[k + 1, c(1)]
-        #cat("Negative outlier found between cells", k, "and", k+1, "drops from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k, c(1)] - CurrentData[k + 1, c(1)], "\n")
+        cat("Negative outlier found between cells", k, "and", k+1, "drops from", CurrentData[k, c(1)], "to", CurrentData[k + 1, c(1)], "with a gap of", CurrentData[k, c(1)] - CurrentData[k + 1, c(1)], "\n")
         
         for(l in k+1:LoopAmount)
         {
@@ -224,41 +225,41 @@ for(i in 1:9)#i in 1:9
     #Interpolation of repeated values.
     PreviousValue <- as.numeric(FilteredData[1, c(1)])+10000#Make look better.
     PreviousIndex <- 0
-    for(i in 1:nrow(FilteredData))#Loops through each row of the FilteredData.
+    for(m in 1:nrow(FilteredData))#Loops through each row of the FilteredData.
     {
-      PresentValue = as.numeric(FilteredData[i, c(1)])
+      PresentValue = as.numeric(FilteredData[m, c(1)])
       if(PresentValue != PreviousValue )
       {
-        GapSize <- i - PreviousIndex
+        GapSize <- m - PreviousIndex
         if(GapSize > 1) 
         {
           #need to interpolate between previous value and present value in the gaps
           Start <- PreviousIndex + 1
-          End <- i - 1
+          End <- m - 1
           if (Start <= End)
           {
             #should interpolate
             Diff <- PresentValue - PreviousValue
             DifferencePerRow <- Diff / GapSize
             Value <- PreviousValue + DifferencePerRow
-            for(j in Start:End)
+            for(n in Start:End)
             {
-              FilteredData[j, c(1)] = Value
+              FilteredData[n, c(1)] = Value
               Value = Value + DifferencePerRow
             }
           }
         }
         PreviousValue = PresentValue
-        PreviousIndex = i
+        PreviousIndex = m
       }
       else
       {
-        FilteredData[i, c(1)] = PreviousValue #Sets duplicates at the end of the column (No value after with a different value) to the previous column value.
+        FilteredData[m, c(1)] = PreviousValue #Sets duplicates at the end of the column (No value after with a different value) to the previous column value.
       }
     }
     
-    Velocity <- diff(na.omit(FilteredData[,c(1)]))
-    Acceleration <- diff(diff(na.omit(FilteredData[,c(1)])))
+    Velocity <- diff(na.omit(FilteredData[, c(1)]))
+    Acceleration <- diff(diff(na.omit(FilteredData[, c(1)])))
     
     if(FileNameCount == 1)
     {
@@ -300,13 +301,13 @@ for(i in 1:9)#i in 1:9
     InterpolatedNameVector <- c(InterpolatedNameVector, InterpolatedDataName)
     
     #Creates a data frame for the velocity of each participant so we can use the data later.
-    CurrentInterpolatedVelocity <- Velocity
+    CurrentInterpolatedVelocity <- data.frame(diff(FilteredData[, c(1)]))
     InterpolatedVelocityDataName <- paste("InterpolatedDataVelocity", j, sep = "")
     assign(InterpolatedVelocityDataName, na.omit(CurrentInterpolatedVelocity))
     InterpolatedVelocityNameVector <- c(InterpolatedVelocityNameVector, InterpolatedVelocityDataName)
     
     #creates a data frame for the acceleration pf each participant so we can use the data later.
-    CurrentInterpolatedAcceleration <- Acceleration
+    CurrentInterpolatedAcceleration <- data.frame(diff(diff(FilteredData[, c(1)])))
     InterpolatedAccelerationDataName <- paste("InterpolatedDataAcceleration", j, sep = "")
     assign(InterpolatedAccelerationDataName, na.omit(CurrentInterpolatedAcceleration))
     InterpolatedAccelerationNameVector <- c(InterpolatedAccelerationNameVector, InterpolatedAccelerationDataName)
@@ -321,17 +322,16 @@ for(i in 1:9)#i in 1:9
   ColumnNumber  = 1
   for(i in 1:ParticipantNumber)
   {
-    #DataName <- paste("Participant", i, sep="")
+    DataName <- paste("Participant", i, sep="")
     InterpolatedDataName <- paste("U_InterpolatedParticipant", i, "_", TaskName, sep = "")#U = Unique
     InterpolatedVelocityDataName <- paste("V_InterpolatedParticipant", i, "_", TaskName, sep = "")#V = Velocity
     InterpolatedAccelerationDataName <- paste("A_InterpolatedParticipant", i, "_", TaskName, sep = "")#A = Acceleration
-    #for(j in 1:DataSetsPerPartcipant)
-    #{
-      #assign(DataName, data.frame(get(NameVector[ColumnNumber]), get(NameVector[ColumnNumber+1]), get(NameVector[ColumnNumber+2]), get(NameVector[ColumnNumber+3])))
-      assign(InterpolatedDataName, data.frame(get(InterpolatedNameVector[ColumnNumber]), get(InterpolatedNameVector[ColumnNumber+1]), get(InterpolatedNameVector[ColumnNumber+2]), get(InterpolatedNameVector[ColumnNumber+3])))
-      assign(InterpolatedVelocityDataName, data.frame(get(InterpolatedVelocityNameVector[ColumnNumber]), get(InterpolatedVelocityNameVector[ColumnNumber+1]), get(InterpolatedVelocityNameVector[ColumnNumber+2]), get(InterpolatedVelocityNameVector[ColumnNumber+3])))
-      assign(InterpolatedAccelerationDataName, data.frame(get(InterpolatedAccelerationNameVector[ColumnNumber]), get(InterpolatedAccelerationNameVector[ColumnNumber+1]), get(InterpolatedAccelerationNameVector[ColumnNumber+2]), get(InterpolatedAccelerationNameVector[ColumnNumber+3])))
-    #}
+
+    assign(DataName, data.frame(get(NameVector[ColumnNumber]), get(NameVector[ColumnNumber+1]), get(NameVector[ColumnNumber+2]), get(NameVector[ColumnNumber+3])))
+    assign(InterpolatedDataName, data.frame(get(InterpolatedNameVector[ColumnNumber]), get(InterpolatedNameVector[ColumnNumber+1]), get(InterpolatedNameVector[ColumnNumber+2]), get(InterpolatedNameVector[ColumnNumber+3])))
+    assign(InterpolatedVelocityDataName, data.frame(get(InterpolatedVelocityNameVector[ColumnNumber]), get(InterpolatedVelocityNameVector[ColumnNumber+1]), get(InterpolatedVelocityNameVector[ColumnNumber+2]), get(InterpolatedVelocityNameVector[ColumnNumber+3])))
+    assign(InterpolatedAccelerationDataName, data.frame(get(InterpolatedAccelerationNameVector[ColumnNumber]), get(InterpolatedAccelerationNameVector[ColumnNumber+1]), get(InterpolatedAccelerationNameVector[ColumnNumber+2]), get(InterpolatedAccelerationNameVector[ColumnNumber+3])))
+
     ColumnNumber <- ColumnNumber + 4
     
     TempData <- get(InterpolatedDataName)#Saves current data frame to a temp variable.
