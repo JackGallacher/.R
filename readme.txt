@@ -1,5 +1,12 @@
-R code I have written to analyse collected data, these are a work in progress.
+R code I have written to analyse collected data from my MSC head movement test.
 
-HeadMovementDataAnalysis - Main R script for analysing head movment data. Takes in 567 peices of individual data (21 participants, 9 tasks, 3 readings per task ) and plots line, acceleration and velocity graphs.
+This program contains two .R scripts. The first (SpikeRemovalScript_V2) complete multiple tasks:
 
-SpikeRemoval - The collected data had some form of data spikes. This script removes them. This will be implemented into HeadMovementDataAnalysis when it is complete.
+- Removes data spikes.
+- Interpolates the data, removing duplicate data.
+- Plots Timer Series, Acceleration and Velocity graphs into a folder.
+- Creates an RMS data frame to perform ANOVA  analysis on.
+
+The second script (ANOVAScript) goes through each RMS value column for each scenario and writes the ANOVA results to word files per task.
+
+
